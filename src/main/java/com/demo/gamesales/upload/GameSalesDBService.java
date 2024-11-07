@@ -2,6 +2,7 @@ package com.demo.gamesales.upload;
 
 import com.zaxxer.hikari.HikariDataSource;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -56,6 +57,32 @@ public class GameSalesDBService {
         checkTables();
     }
 
+    public void importFileToDB(List<String[]> gameSalesList, String fileName) throws Exception {
+
+        int uploadHistoryId = insertUploadHistory(fileName, gameSalesList.size());
+
+        String filePath = "file_import_".concat(String.valueOf(uploadHistoryId)).concat(".csv");
+
+        createImportFile(gameSalesList, uploadHistoryId, filePath);
+
+        int recordsInserted = importFileIntoDBTable(filePath);
+
+        updateUploadHistory(recordsInserted,uploadHistoryId);
+
+        checkTables();
+    }
+
+    private void createImportFile(List<String[]> gameSalesList, int uploadHistoryId, String filePath) throws Exception {
+
+        List<Object[]> appendedList = new ArrayList<>();
+
+        for (String [] row: gameSalesList) {
+            appendedList.add(ArrayUtils.add(row,String.valueOf(uploadHistoryId)));
+        }
+
+        GameSalesDataBuilder.writeCSVFile(appendedList, filePath);
+    }
+
     private int insertUploadHistory(String fileName, int fileCount) {
 
         String sql = "INSERT INTO GAME_SALES_UPLOAD_HISTORY (FILE_NAME, FILE_RECORDS_COUNT) VALUES (:fileName,:fileRecordsCount)";
@@ -72,6 +99,16 @@ public class GameSalesDBService {
 
         return keyHolder.getKey().intValue();
 
+    }
+
+    private int importFileIntoDBTable(String filePath) {
+        StringBuilder builder = new StringBuilder("LOAD DATA LOCAL INFILE ");
+        builder.append("'").append(filePath).append("'");
+        builder.append(" INTO TABLE GAME_SALES");
+        builder.append(" FIELDS TERMINATED BY ','");
+        builder.append(" LINES TERMINATED BY '\\r\\n';");
+
+        return jdbcTemplate.update(builder.toString());
     }
 
     private int saveAllInParallel(List<String[]> gameSalesList, int uploadHistoryId) {
