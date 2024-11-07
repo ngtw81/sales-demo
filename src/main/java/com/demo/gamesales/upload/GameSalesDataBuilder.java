@@ -76,6 +76,18 @@ public class GameSalesDataBuilder {
         }
     }
 
+    public static void writeCSVFile(List<Object[]> values, String filePath) throws Exception {
+
+        try (Writer outputWriter = new OutputStreamWriter(new FileOutputStream(new File(filePath)), "UTF-8")) {
+            CsvWriterSettings csvWriterSettings= new CsvWriterSettings();
+            CsvWriter writer = new CsvWriter(outputWriter, csvWriterSettings);
+            writer.writeRowsAndClose(values);
+        } catch (Exception e) {
+            throw e;
+        }
+
+    }
+
     private static String generateRandomGameCode(int len) {
 
         StringBuilder sb = new StringBuilder(len);
