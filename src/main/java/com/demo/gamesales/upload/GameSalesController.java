@@ -64,6 +64,48 @@ public class GameSalesController {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
     }
 
+    @PostMapping("/v2/import")
+    public ResponseEntity<String> handleFileImport(@RequestParam(name="file",required=true) MultipartFile file) {
+
+        String message;
+
+        String uploadedFileName = file.getOriginalFilename();
+
+        if (gameSalesService.hasCsvFormat(file)) {
+            try {
+
+                List<String[]> gameSaleDTOList = gameSalesService.extractRecordsFromCSV(file);
+
+                if (gameSaleDTOList.size()==0) {
+                    message = "File have no records: " + uploadedFileName ;
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+                }
+
+                if (!gameSalesService.isValidCSVHeaders(gameSaleDTOList.get(0))) {
+                    message = "File have invalid headers: " + uploadedFileName;
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+                }
+
+                gameSaleDTOList.remove(0);
+
+                gameSalesDBService.importFileToDB(gameSaleDTOList, uploadedFileName);
+
+                message = "File is uploaded successfully: " + uploadedFileName;
+
+                return ResponseEntity.status(HttpStatus.OK).body(message);
+
+            } catch (Exception e) {
+                message = "File is not uploaded successfully: " + uploadedFileName + "!";
+
+                log.error(message,e);
+            }
+        }
+
+        message = "Please upload an csv file!";
+
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+    }
+
     @GetMapping(path="/getGameSales")
     public @ResponseBody List getGameSales(@RequestParam(required=true) int page, @RequestParam Optional<String> fromDate, @RequestParam Optional<String> toDate, @RequestParam  Optional<Integer> priceLessThan, @RequestParam  Optional<Integer> priceMoreThan) {
 
